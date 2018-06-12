@@ -1,0 +1,32 @@
+def getEpicIssues(String key) {
+	def  jql = "'Epic Link' = ${key}"
+	    
+    def linkedIssues = get("/rest/api/2/search")
+        .queryString("jql", jql)
+        .queryString("startAt", 0)
+        .queryString("maxResults", 100) // If we search for too many issues we'll reach the 30s script timeout
+        .queryString("fields", "duedate, customfield_14438")
+        .queryString("expand", "names,schema")
+        .asObject(Map)
+	linkedIssues.body
+}
+
+
+
+
+
+def updateEpicDate(String key, String value)
+	 def updateDoc = [fields: [
+                customfield_14438: value 
+        ]]
+	 def resp = put("/rest/api/2/issue/${issue.key}")
+                .queryString("overrideScreenSecurity", true)
+                .header("Content-Type", "application/json")
+                .body(updateDoc)
+                .asObject(Map)
+    if (resp.status > 299) {
+        logger.error("Failed to update ${issue.key}: ${resp.statusText} - ${resp.body}")
+        def errorMessages = (resp.body as Map).errorMessages as List<String>
+        errors += "\nERROR: ${issue.key}: ${errorMessages?.join(',')}"
+    } 
+}

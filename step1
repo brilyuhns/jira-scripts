@@ -1,0 +1,90 @@
+def get_epic_issues(String query)
+    // def query = "project = CAN AND duedate is not Empty AND type = Epic"
+    def searchReq = get("/rest/api/2/search")
+            .queryString("jql", query)
+            .queryString("startAt", 0)
+            .queryString("maxResults", 100) // If we search for too many issues we'll reach the 30s script timeout
+            .queryString("fields", "duedate, customfield_14438")
+            .queryString("expand", "names,schema")
+            .asObject(Map)
+    assert searchReq.status == 200
+    def str = ""
+end
+// Now we iterate through the search results
+searchReq.body.issues.each { Map issue ->
+    def issueFields = issue.fields as Map
+    str = str + issue.key + ":" + duedate + "|" + customfield_14438 + "\n" 
+}
+
+// customfield_10009
+// customfield_14438
+// duedate
+
+
+str
+
+
+
+
+
+
+
+
+String str = ""
+def epics = getEpicIssues('project = CAN AND duedate is not Empty AND type = Epic', 10, 11)
+
+epics.issues.each { Map issue ->
+    String key = issue.key
+    // def epic_date = issue.fields.duedate
+    str += issue.key + "|" +  issue.fields.duedate + "\n"
+    
+    
+ 
+
+    def linkedIssues = getLinkedIssues(key).issues
+    linkedIssues.each { Map lIssue ->
+        str += "   " + lIssue.key + "|" + issue.fields.duedate + "\n"
+        updateEpicDate(lIssue.key, issue.fields.duedate )
+    }
+}
+
+str
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def bulkUpdateEpicDate(String list, String value){
+    def errors = ''
+    def updateDoc = {
+      "value": {
+        "customfield_14438": value
+      },
+      "filter": {
+        "entityIds": list
+    }
+    def resp = put("/rest/api/2/issue/properties/customfield_14438")
+                .queryString("overrideScreenSecurity", true)
+                .header("Content-Type", "application/json")
+                .body(updateDoc)
+                .asObject(Map)
+    if (resp.status > 299) {
+        logger.error("Failed to update ${key}: ${resp.statusText} - ${resp.body}")
+    }
+}

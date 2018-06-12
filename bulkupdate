@@ -1,0 +1,18 @@
+def bulkUpdateEpicDate(list, String date_val){
+    def errors = ''
+    def updateDoc = [
+      value: { customfield_14438: date_val },
+      filter: {
+        entityIds: list }
+      ]
+    def resp = put("/rest/api/2/issue/properties/customfield_14438")
+                .queryString("overrideScreenSecurity", true)
+                .header("Content-Type", "application/json")
+                .body(updateDoc)
+                .asObject(Map)
+    if (resp.status > 299) {
+        logger.error("Failed to update ${list}: ${resp.statusText} - ${resp.body}")
+    }
+    str = "done"
+    
+}

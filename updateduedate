@@ -1,0 +1,62 @@
+
+def updateEpicDate(String key, String value){
+    def errors = ''
+    def updateDoc = [fields: [
+                customfield_14438: value 
+        ]]
+    def resp = put("/rest/api/2/issue/${key}")
+                .queryString("overrideScreenSecurity", true)
+                .header("Content-Type", "application/json")
+                .body(updateDoc)
+                .asObject(Map)
+    if (resp.status > 299) {
+        logger.error("Failed to update ${key}: ${resp.statusText} - ${resp.body}")
+    }
+}
+
+
+def getLinkedIssues(String key) {
+    def  jql = "'Epic Link' = ${key}"
+        
+    def linkedIssues = get("/rest/api/2/search")
+        .queryString("jql", jql)
+        .queryString("startAt", 0)
+        .queryString("maxResults", 100) // If we search for too many issues we'll reach the 30s script timeout
+        .queryString("fields", "duedate, customfield_14438")
+        .queryString("expand", "names,schema")
+        .asObject(Map)
+    linkedIssues.body
+}
+
+def getEpicIssues(String query, Integer start, Integer end){
+    // def query = "project = CAN AND duedate is not Empty AND type = Epic"
+    def searchReq = get("/rest/api/2/search")
+            .queryString("jql", query)
+            .queryString("startAt", start)
+            .queryString("maxResults", end) // If we search for too many issues we'll reach the 30s script timeout
+            .queryString("fields", "duedate, customfield_14438")
+            .queryString("expand", "names,schema")
+            .asObject(Map)
+    assert searchReq.status == 200
+    searchReq.body
+}
+
+def main(String epic_query, int start, int end){    
+    String str = ""
+    def epics = getEpicIssues(epic_query, start, end)
+    epics.issues.each { Map issue ->
+        String key = issue.key
+        // def epic_date = issue.fields.duedate
+        str += issue.key + "|" +  issue.fields.duedate + "\n"
+        def linkedIssues = getLinkedIssues(key).issues
+        def issueList = []
+        linkedIssues.each { Map lIssue ->
+            str += "   " + lIssue.key + "|" + issue.id + "|" + issue.fields.duedate + "\n"
+            issueList.add(lIssue.id)
+            // updateEpicDate(lIssue.key, issue.fields.duedate )
+        }
+    }
+    str
+}
+
+main("project = DOT AND duedate is not Empty AND type = Epic",0, 5)
